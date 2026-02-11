@@ -1,7 +1,15 @@
 "use client";
 
 import type { Route } from "next";
-import { LayoutDashboard, TrendingUp, PiggyBank, Landmark, Calculator, Lightbulb, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  TrendingUp,
+  PiggyBank,
+  Landmark,
+  Calculator,
+  Lightbulb,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
