@@ -3,8 +3,10 @@ import {
   getAccountsWithAssets,
   getAccountsGroupedByCategory,
   getTransactionsByMonth,
+  getTransactionsByAccountId,
   getHoldingsWithLatestValues,
   getHoldingsWithDailyChange,
+  getHoldingsByAccountId,
   getMonthlySummaries,
   getMonthlySummaryByMonth,
   getMonthlyCategoryTotals,
@@ -15,10 +17,12 @@ import {
   getAssetBreakdownByCategory,
   getLiabilityBreakdownByCategory,
   getAssetHistory,
+  getAssetHistoryWithCategories,
   getLatestTotalAssets,
   getDailyAssetChange,
   getCategoryChangesForPeriod,
   getFinancialMetrics,
+  getLatestAnalytics,
 } from "@moneyforward-daily-action/db";
 import { tool } from "ai";
 import { z } from "zod";
@@ -136,6 +140,32 @@ export function createFinancialTools(db: Db, groupId: string) {
         "事前計算済みの財務メトリクス（貯蓄率・投資損益・支出傾向・成長率・ヘルススコア等）を一括取得",
       inputSchema: z.object({}),
       execute: async () => getFinancialMetrics(groupId, db),
+    }),
+    getHoldingsByAccountId: tool({
+      description: "指定口座の保有銘柄・評価額・含み損益を取得",
+      inputSchema: z.object({
+        accountId: z.number().describe("口座ID"),
+      }),
+      execute: async ({ accountId }) => getHoldingsByAccountId(accountId, groupId, db),
+    }),
+    getTransactionsByAccountId: tool({
+      description: "指定口座の取引履歴を取得",
+      inputSchema: z.object({
+        accountId: z.number().describe("口座ID"),
+      }),
+      execute: async ({ accountId }) => getTransactionsByAccountId(accountId, groupId, db),
+    }),
+    getAssetHistoryWithCategories: tool({
+      description: "カテゴリ別の資産推移を取得（日次、カテゴリ内訳付き）",
+      inputSchema: z.object({
+        limit: z.number().optional().describe("取得件数（省略時は全件）"),
+      }),
+      execute: async ({ limit }) => getAssetHistoryWithCategories({ limit, groupId }, db),
+    }),
+    getLatestAnalytics: tool({
+      description: "保存済みのAI分析レポート（メトリクス＋LLMインサイト）を取得",
+      inputSchema: z.object({}),
+      execute: async () => getLatestAnalytics(groupId, db),
     }),
   };
 }

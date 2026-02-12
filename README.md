@@ -20,6 +20,10 @@ Slack botの設定をすることにより、前日との差分を投稿可能�
 
 hookが提供されているので、スクレイピング時に用意したスクリプトを実行可能。例えば、特定の金融機関の取引の場合に大項目、中項目を常に食品に設定する等。Playwrightの`Page`を持っているので基本何でもできる。
 
+### MCP経由でAIアシスタントと連携
+
+MCP (Model Context Protocol) サーバーを内蔵。ChatGPTやClaude Desktopから、家計・資産・投資データを自然言語で照会できる。詳細は [apps/mcp/README.md](apps/mcp/README.md) を参照。
+
 ### すべての情報を可視化
 
 [demoページ](https://hiroppy.github.io/mf-dashboard/accounts/)を参考。予算機能以外はすべて対応済み。

@@ -77,6 +77,12 @@ function HelpButton({ iconSize, className }: { iconSize: string; className?: str
                     スクレイピング時に独自のスクリプトを実行可能。例：特定の取引のカテゴリを自動設定。
                   </span>
                 </li>
+                <li>
+                  <span className="font-medium text-foreground">MCP 連携</span>
+                  <span className="block ml-5 mt-1">
+                    Chat GPT や Claude Desktop から家計・資産・投資データを自然言語で照会できます。
+                  </span>
+                </li>
               </ul>
             </div>
             <div className="pt-2 border-t">

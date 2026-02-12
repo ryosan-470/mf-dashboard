@@ -164,7 +164,9 @@ See `apps/web/src/app/globals.css` for CSS variable definitions.
 Monorepo using pnpm workspaces + Turborepo.
 
 - `apps/crawler` — Money Forward scraper
+- `apps/mcp` — MCP server (Claude Desktop / Claude Code 連携)
 - `apps/web` — Next.js dashboard
+- `packages/analytics` — Financial analysis & tool definitions (shared)
 - `packages/db` — Database schema & repositories (shared)
 - `packages/meta` — Category definitions & URLs (shared)
 

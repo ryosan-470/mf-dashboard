@@ -5,8 +5,10 @@ vi.mock("@moneyforward-daily-action/db", () => ({
   getAccountsWithAssets: vi.fn(() => [{ id: 1, name: "Account A" }]),
   getAccountsGroupedByCategory: vi.fn(() => []),
   getTransactionsByMonth: vi.fn(() => []),
+  getTransactionsByAccountId: vi.fn(() => []),
   getHoldingsWithLatestValues: vi.fn(() => []),
   getHoldingsWithDailyChange: vi.fn(() => []),
+  getHoldingsByAccountId: vi.fn(() => []),
   getMonthlySummaries: vi.fn(() => []),
   getMonthlySummaryByMonth: vi.fn(() => undefined),
   getMonthlyCategoryTotals: vi.fn(() => []),
@@ -23,28 +25,34 @@ vi.mock("@moneyforward-daily-action/db", () => ({
   getAssetBreakdownByCategory: vi.fn(() => []),
   getLiabilityBreakdownByCategory: vi.fn(() => []),
   getAssetHistory: vi.fn(() => []),
+  getAssetHistoryWithCategories: vi.fn(() => []),
   getLatestTotalAssets: vi.fn(() => 5000000),
   getDailyAssetChange: vi.fn(() => null),
   getCategoryChangesForPeriod: vi.fn(() => null),
   getFinancialMetrics: vi.fn(() => null),
+  getLatestAnalytics: vi.fn(() => null),
 }));
 
 const {
   getAccountsWithAssets,
   getTransactionsByMonth,
+  getTransactionsByAccountId,
+  getHoldingsByAccountId,
   getMonthlySummaries,
   getAssetHistory,
+  getAssetHistoryWithCategories,
   getYearToDateSummary,
   getCategoryChangesForPeriod,
+  getLatestAnalytics,
 } = await import("@moneyforward-daily-action/db");
 
 const mockDb = {} as any;
 const groupId = "test-group";
 
 describe("createFinancialTools", () => {
-  it("should return all 19 tools", () => {
+  it("should return all 23 tools", () => {
     const tools = createFinancialTools(mockDb, groupId);
-    expect(Object.keys(tools)).toHaveLength(19);
+    expect(Object.keys(tools)).toHaveLength(23);
   });
 
   it("should have descriptions and inputSchema for each tool", () => {
@@ -108,5 +116,41 @@ describe("createFinancialTools", () => {
       { toolCallId: "test", messages: [], abortSignal: undefined as any },
     );
     expect(getCategoryChangesForPeriod).toHaveBeenCalledWith("weekly", groupId, mockDb);
+  });
+
+  it("should pass accountId to getHoldingsByAccountId", async () => {
+    const tools = createFinancialTools(mockDb, groupId);
+    await tools.getHoldingsByAccountId.execute!(
+      { accountId: 42 },
+      { toolCallId: "test", messages: [], abortSignal: undefined as any },
+    );
+    expect(getHoldingsByAccountId).toHaveBeenCalledWith(42, groupId, mockDb);
+  });
+
+  it("should pass accountId to getTransactionsByAccountId", async () => {
+    const tools = createFinancialTools(mockDb, groupId);
+    await tools.getTransactionsByAccountId.execute!(
+      { accountId: 7 },
+      { toolCallId: "test", messages: [], abortSignal: undefined as any },
+    );
+    expect(getTransactionsByAccountId).toHaveBeenCalledWith(7, groupId, mockDb);
+  });
+
+  it("should pass limit to getAssetHistoryWithCategories", async () => {
+    const tools = createFinancialTools(mockDb, groupId);
+    await tools.getAssetHistoryWithCategories.execute!(
+      { limit: 10 },
+      { toolCallId: "test", messages: [], abortSignal: undefined as any },
+    );
+    expect(getAssetHistoryWithCategories).toHaveBeenCalledWith({ limit: 10, groupId }, mockDb);
+  });
+
+  it("should call getLatestAnalytics with no extra params", async () => {
+    const tools = createFinancialTools(mockDb, groupId);
+    await tools.getLatestAnalytics.execute!(
+      {},
+      { toolCallId: "test", messages: [], abortSignal: undefined as any },
+    );
+    expect(getLatestAnalytics).toHaveBeenCalledWith(groupId, mockDb);
   });
 });
