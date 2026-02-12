@@ -100,7 +100,7 @@ importers:
   apps/mcp:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: ^1.12.1
+        specifier: 1.26.0
         version: 1.26.0(zod@4.3.6)
       '@moneyforward-daily-action/analytics':
         specifier: workspace:*

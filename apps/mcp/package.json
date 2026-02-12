@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "1.26.0",
     "@moneyforward-daily-action/analytics": "workspace:*",
     "@moneyforward-daily-action/db": "workspace:*",
     "better-sqlite3": "catalog:",
