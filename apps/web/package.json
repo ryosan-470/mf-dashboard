@@ -19,7 +19,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@base-ui/react": "1.1.0",
+    "@base-ui/react": "1.2.0",
     "@moneyforward-daily-action/db": "workspace:*",
     "@moneyforward-daily-action/meta": "workspace:*",
     "@nivo/sankey": "0.99.0",
