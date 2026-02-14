@@ -27,7 +27,7 @@ let scrapeResult: ScrapeResult;
 
 beforeAll(async () => {
   // テスト用 DB パスを環境変数で設定
-  setupTestDb(TEST_DB_PATH);
+  await setupTestDb(TEST_DB_PATH);
 
   // auth state を使ってブラウザ起動 & スクレイプ
   ({ browser, context } = await launchLoggedInContext());

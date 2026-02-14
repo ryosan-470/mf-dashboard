@@ -2,12 +2,12 @@ import { describe, test, expect, beforeAll, beforeEach, afterAll } from "vitest"
 import { createTestDb, resetTestDb, closeTestDb } from "../test-helpers";
 import { getOrCreateCategory } from "./categories";
 
-type Db = ReturnType<typeof createTestDb>;
+type Db = Awaited<ReturnType<typeof createTestDb>>;
 
 let db: Db;
 
-beforeAll(() => {
-  db = createTestDb();
+beforeAll(async () => {
+  db = await createTestDb();
 });
 
 afterAll(() => {

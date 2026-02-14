@@ -89,7 +89,7 @@ export async function deleteTransactionsForMonth(db: Db, month: string): Promise
     .delete(schema.transactions)
     .where(like(schema.transactions.date, `${month}%`))
     .run();
-  return result.changes;
+  return result.rowsAffected;
 }
 
 /**

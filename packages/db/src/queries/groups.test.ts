@@ -3,11 +3,11 @@ import { schema } from "../index";
 import { createTestDb, resetTestDb, closeTestDb } from "../test-helpers";
 import { getCurrentGroup, getAllGroups } from "./groups";
 
-type Db = ReturnType<typeof createTestDb>;
+type Db = Awaited<ReturnType<typeof createTestDb>>;
 let db: Db;
 
-beforeAll(() => {
-  db = createTestDb();
+beforeAll(async () => {
+  db = await createTestDb();
 });
 
 afterAll(() => {

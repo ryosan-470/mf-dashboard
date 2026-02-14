@@ -12,9 +12,7 @@ const config: KnipConfig = {
     "apps/simulator": {
       ignoreDependencies: ["postcss"],
     },
-    "apps/mcp": {
-      ignoreDependencies: ["better-sqlite3"],
-    },
+    "apps/mcp": {},
   },
 };
 

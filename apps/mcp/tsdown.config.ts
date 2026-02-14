@@ -2,9 +2,7 @@ import { defineConfig } from "tsdown";
 
 export default defineConfig({
   entry: ["src/index.ts"],
-  // better-sqlite3に合わせてcjs
-  format: "cjs",
+  format: "esm",
   platform: "node",
   noExternal: [/.*/],
-  external: ["better-sqlite3"],
 });

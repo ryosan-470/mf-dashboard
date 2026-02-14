@@ -48,7 +48,7 @@ async function main() {
 
   section("Setup");
   log("Initializing database");
-  const db = initDb();
+  const db = await initDb();
 
   const browser = await chromium.launch({
     headless: !isHeaded,

@@ -1,6 +1,6 @@
-import Database from "better-sqlite3";
+import { createClient, type Client } from "@libsql/client";
 import { eq, and, isNotNull, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/libsql";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 /**
@@ -21,21 +21,21 @@ const dbPath = join(import.meta.dirname, "..", "..", "..", "data", "demo.db");
 const demoDbExists = existsSync(dbPath);
 
 describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
-  let sqlite: Database.Database;
+  let client: Client;
   let db: ReturnType<typeof drizzle>;
 
   beforeAll(() => {
-    sqlite = new Database(dbPath, { readonly: true });
-    db = drizzle(sqlite, { schema });
+    client = createClient({ url: `file:${dbPath}` });
+    db = drizzle(client, { schema });
   });
 
   afterAll(() => {
-    sqlite?.close();
+    client?.close();
   });
 
   describe("グループ構成", () => {
-    test("3つのグループが存在する", () => {
-      const groups = db.select().from(schema.groups).all();
+    test("3つのグループが存在する", async () => {
+      const groups = await db.select().from(schema.groups).all();
       expect(groups).toHaveLength(3);
 
       const names = groups.map((g) => g.name);
@@ -44,8 +44,8 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       expect(names).toContain("生活");
     });
 
-    test("グループ選択なしがisCurrent=trueである", () => {
-      const currentGroup = db
+    test("グループ選択なしがisCurrent=trueである", async () => {
+      const currentGroup = await db
         .select()
         .from(schema.groups)
         .where(eq(schema.groups.isCurrent, true))
@@ -54,20 +54,21 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       expect(currentGroup?.name).toBe("グループ選択なし");
     });
 
-    test("全アカウントがグループ選択なしに所属している", () => {
-      const allAccounts = db.select().from(schema.accounts).all();
-      const noGroupId = db
+    test("全アカウントがグループ選択なしに所属している", async () => {
+      const allAccounts = await db.select().from(schema.accounts).all();
+      const noGroup = await db
         .select()
         .from(schema.groups)
         .where(eq(schema.groups.name, "グループ選択なし"))
-        .get()!.id;
+        .get();
 
-      const groupAccountIds = db
-        .select({ accountId: schema.groupAccounts.accountId })
-        .from(schema.groupAccounts)
-        .where(eq(schema.groupAccounts.groupId, noGroupId))
-        .all()
-        .map((ga) => ga.accountId);
+      const groupAccountIds = (
+        await db
+          .select({ accountId: schema.groupAccounts.accountId })
+          .from(schema.groupAccounts)
+          .where(eq(schema.groupAccounts.groupId, noGroup!.id))
+          .all()
+      ).map((ga) => ga.accountId);
 
       for (const acc of allAccounts) {
         expect(groupAccountIds).toContain(acc.id);
@@ -76,8 +77,8 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
   });
 
   describe("振替トランザクション", () => {
-    test("振替トランザクションにtransferTargetAccountIdが設定されている", () => {
-      const transfers = db
+    test("振替トランザクションにtransferTargetAccountIdが設定されている", async () => {
+      const transfers = await db
         .select()
         .from(schema.transactions)
         .where(eq(schema.transactions.isTransfer, true))
@@ -92,8 +93,8 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       }
     });
 
-    test("transferTargetAccountIdは有効なアカウントIDである", () => {
-      const transfers = db
+    test("transferTargetAccountIdは有効なアカウントIDである", async () => {
+      const transfers = await db
         .select()
         .from(schema.transactions)
         .where(
@@ -104,20 +105,18 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
         )
         .all();
 
-      const accountIds = db
-        .select({ id: schema.accounts.id })
-        .from(schema.accounts)
-        .all()
-        .map((a) => a.id);
+      const accountIds = (
+        await db.select({ id: schema.accounts.id }).from(schema.accounts).all()
+      ).map((a) => a.id);
 
       for (const t of transfers) {
         expect(accountIds).toContain(t.transferTargetAccountId);
       }
     });
 
-    test("ゆうちょ銀行からの振替が存在する", () => {
+    test("ゆうちょ銀行からの振替が存在する", async () => {
       // ゆうちょ銀行（貯蓄用）のIDを取得
-      const yuchoAccount = db
+      const yuchoAccount = await db
         .select()
         .from(schema.accounts)
         .where(sql`${schema.accounts.name} LIKE '%ゆうちょ銀行%'`)
@@ -126,7 +125,7 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       expect(yuchoAccount).toBeDefined();
 
       // ゆうちょ銀行（account_id）からの振替を検索
-      const transfersFromYucho = db
+      const transfersFromYucho = await db
         .select()
         .from(schema.transactions)
         .where(
@@ -142,8 +141,8 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
   });
 
   describe("グループ外振替（収入変換対象）", () => {
-    test("生活グループにはゆうちょ銀行が含まれない", () => {
-      const livingGroup = db
+    test("生活グループにはゆうちょ銀行が含まれない", async () => {
+      const livingGroup = await db
         .select()
         .from(schema.groups)
         .where(eq(schema.groups.name, "生活"))
@@ -151,14 +150,15 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
 
       expect(livingGroup).toBeDefined();
 
-      const livingAccountIds = db
-        .select({ accountId: schema.groupAccounts.accountId })
-        .from(schema.groupAccounts)
-        .where(eq(schema.groupAccounts.groupId, livingGroup!.id))
-        .all()
-        .map((ga) => ga.accountId);
+      const livingAccountIds = (
+        await db
+          .select({ accountId: schema.groupAccounts.accountId })
+          .from(schema.groupAccounts)
+          .where(eq(schema.groupAccounts.groupId, livingGroup!.id))
+          .all()
+      ).map((ga) => ga.accountId);
 
-      const yuchoAccount = db
+      const yuchoAccount = await db
         .select()
         .from(schema.accounts)
         .where(sql`${schema.accounts.name} LIKE '%ゆうちょ銀行%'`)
@@ -168,8 +168,8 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       expect(livingAccountIds).not.toContain(yuchoAccount!.id);
     });
 
-    test("生活グループ視点でグループ外振替が存在する", () => {
-      const livingGroup = db
+    test("生活グループ視点でグループ外振替が存在する", async () => {
+      const livingGroup = await db
         .select()
         .from(schema.groups)
         .where(eq(schema.groups.name, "生活"))
@@ -177,16 +177,17 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       expect(livingGroup).toBeDefined();
 
       const livingAccountIds = new Set(
-        db
-          .select({ accountId: schema.groupAccounts.accountId })
-          .from(schema.groupAccounts)
-          .where(eq(schema.groupAccounts.groupId, livingGroup!.id))
-          .all()
-          .map((ga) => ga.accountId),
+        (
+          await db
+            .select({ accountId: schema.groupAccounts.accountId })
+            .from(schema.groupAccounts)
+            .where(eq(schema.groupAccounts.groupId, livingGroup!.id))
+            .all()
+        ).map((ga) => ga.accountId),
       );
 
       // 生活グループ内のアカウントに紐づく振替で、transferTargetがグループ外のもの
-      const transfers = db
+      const transfers = await db
         .select()
         .from(schema.transactions)
         .where(
@@ -208,12 +209,12 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
   });
 
   describe("資産整合性", () => {
-    test("holdingValuesの合計がassetHistoryの最終日と一致する", () => {
-      const groups = db.select().from(schema.groups).all();
+    test("holdingValuesの合計がassetHistoryの最終日と一致する", async () => {
+      const groups = await db.select().from(schema.groups).all();
 
       for (const group of groups) {
         // グループの最新スナップショットを取得
-        const snapshot = db
+        const snapshot = await db
           .select()
           .from(schema.dailySnapshots)
           .where(eq(schema.dailySnapshots.groupId, group.id))
@@ -224,7 +225,7 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
         if (!snapshot) continue;
 
         // holdingValuesの合計
-        const holdingTotal = db
+        const holdingTotal = await db
           .select({ total: sql<number>`SUM(${schema.holdingValues.amount})` })
           .from(schema.holdingValues)
           .innerJoin(schema.holdings, eq(schema.holdingValues.holdingId, schema.holdings.id))
@@ -232,7 +233,7 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
           .get();
 
         // assetHistoryの最終日
-        const latestAssetHistory = db
+        const latestAssetHistory = await db
           .select()
           .from(schema.assetHistory)
           .where(eq(schema.assetHistory.groupId, group.id))
@@ -242,7 +243,7 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
 
         if (holdingTotal?.total && latestAssetHistory) {
           // 資産のみの合計を比較（負債は除く）
-          const assetHoldingTotal = db
+          const assetHoldingTotal = await db
             .select({ total: sql<number>`SUM(${schema.holdingValues.amount})` })
             .from(schema.holdingValues)
             .innerJoin(schema.holdings, eq(schema.holdingValues.holdingId, schema.holdings.id))
@@ -259,8 +260,8 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       }
     });
 
-    test("アカウントごとのholdingが存在する", () => {
-      const accounts = db.select().from(schema.accounts).all();
+    test("アカウントごとのholdingが存在する", async () => {
+      const accounts = await db.select().from(schema.accounts).all();
 
       // 携帯・通販など取引のみで資産を持たないアカウントは除外
       const accountsWithExpectedHoldings = accounts.filter(
@@ -268,7 +269,7 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       );
 
       for (const acc of accountsWithExpectedHoldings) {
-        const holdings = db
+        const holdings = await db
           .select()
           .from(schema.holdings)
           .where(eq(schema.holdings.accountId, acc.id))
@@ -280,8 +281,8 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
   });
 
   describe("トランザクション整合性", () => {
-    test("収入・支出トランザクションにカテゴリが設定されている", () => {
-      const incomeExpense = db
+    test("収入・支出トランザクションにカテゴリが設定されている", async () => {
+      const incomeExpense = await db
         .select()
         .from(schema.transactions)
         .where(sql`${schema.transactions.type} IN ('income', 'expense')`)
@@ -292,8 +293,8 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       }
     });
 
-    test("振替トランザクションはisExcludedFromCalculation=trueである", () => {
-      const transfers = db
+    test("振替トランザクションはisExcludedFromCalculation=trueである", async () => {
+      const transfers = await db
         .select()
         .from(schema.transactions)
         .where(eq(schema.transactions.type, "transfer"))
@@ -304,14 +305,15 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       }
     });
 
-    test("月次データが連続している", () => {
-      const months = db
-        .select({ month: sql<string>`SUBSTR(${schema.transactions.date}, 1, 7)` })
-        .from(schema.transactions)
-        .groupBy(sql`SUBSTR(${schema.transactions.date}, 1, 7)`)
-        .orderBy(sql`SUBSTR(${schema.transactions.date}, 1, 7)`)
-        .all()
-        .map((m) => m.month);
+    test("月次データが連続している", async () => {
+      const months = (
+        await db
+          .select({ month: sql<string>`SUBSTR(${schema.transactions.date}, 1, 7)` })
+          .from(schema.transactions)
+          .groupBy(sql`SUBSTR(${schema.transactions.date}, 1, 7)`)
+          .orderBy(sql`SUBSTR(${schema.transactions.date}, 1, 7)`)
+          .all()
+      ).map((m) => m.month);
 
       expect(months.length).toBeGreaterThan(0);
 
@@ -328,15 +330,15 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
   });
 
   describe("予算設定", () => {
-    test("生活グループとグループ選択なしに予算が設定されている", () => {
-      const groups = db
+    test("生活グループとグループ選択なしに予算が設定されている", async () => {
+      const groups = await db
         .select()
         .from(schema.groups)
         .where(sql`${schema.groups.name} IN ('グループ選択なし', '生活')`)
         .all();
 
       for (const group of groups) {
-        const targets = db
+        const targets = await db
           .select()
           .from(schema.spendingTargets)
           .where(eq(schema.spendingTargets.groupId, group.id))
@@ -346,8 +348,8 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
       }
     });
 
-    test("投資グループには予算が設定されていない", () => {
-      const investmentGroup = db
+    test("投資グループには予算が設定されていない", async () => {
+      const investmentGroup = await db
         .select()
         .from(schema.groups)
         .where(eq(schema.groups.name, "投資"))
@@ -355,7 +357,7 @@ describe.skipIf(!demoDbExists)("demo.db 整合性テスト", () => {
 
       expect(investmentGroup).toBeDefined();
 
-      const targets = db
+      const targets = await db
         .select()
         .from(schema.spendingTargets)
         .where(eq(schema.spendingTargets.groupId, investmentGroup!.id))

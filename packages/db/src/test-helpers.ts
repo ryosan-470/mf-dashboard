@@ -1,6 +1,6 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { createClient, type Client } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 import { join } from "node:path";
 import type { Db } from "./index";
 import * as schema from "./schema/schema";
@@ -9,13 +9,12 @@ import * as schema from "./schema/schema";
  * テスト用のインメモリ DB を作成し、マイグレーションを適用して返す。
  * beforeAll で1回だけ呼び出し、テスト間は resetTestDb でデータをクリアする。
  */
-export function createTestDb(): Db {
-  const sqlite = new Database(":memory:");
-  sqlite.pragma("journal_mode = WAL");
-  const db = drizzle(sqlite, { schema });
+export async function createTestDb(): Promise<Db> {
+  const client = createClient({ url: ":memory:" });
+  const db = drizzle(client, { schema });
 
   // マイグレーション適用
-  migrate(db, {
+  await migrate(db, {
     migrationsFolder: join(import.meta.dirname, "../drizzle"),
   });
 
@@ -68,5 +67,5 @@ export async function createTestGroup(db: Db): Promise<string> {
  * テスト用 DB の接続を閉じる。afterAll で呼び出す。
  */
 export function closeTestDb(db: Db): void {
-  (db as unknown as { $client: Database.Database }).$client.close();
+  (db as unknown as { $client: Client }).$client.close();
 }

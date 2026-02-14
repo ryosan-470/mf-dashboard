@@ -3,13 +3,13 @@ import { schema } from "../index";
 import { createTestDb, resetTestDb, closeTestDb } from "../test-helpers";
 import { getTransactions, getTransactionsByMonth, getTransactionsByAccountId } from "./transaction";
 
-type Db = ReturnType<typeof createTestDb>;
+type Db = Awaited<ReturnType<typeof createTestDb>>;
 let db: Db;
 
 const TEST_GROUP_ID = "test_group_001";
 
-beforeAll(() => {
-  db = createTestDb();
+beforeAll(async () => {
+  db = await createTestDb();
 });
 
 afterAll(() => {

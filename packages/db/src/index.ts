@@ -1,13 +1,13 @@
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
+import { createClient, type Client } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import * as schema from "./schema/schema";
 
 let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
-let _sqlite: Database.Database | null = null;
+let _client: Client | null = null;
 
 function getDbPath() {
   if (process.env.DB_PATH) {
@@ -32,28 +32,27 @@ export function isDatabaseAvailable(): boolean {
 
 export function getDb() {
   if (!_db) {
-    _sqlite = new Database(getDbPath());
-    _sqlite.pragma("journal_mode = WAL");
-    _db = drizzle(_sqlite, { schema });
+    _client = createClient({ url: `file:${getDbPath()}` });
+    _db = drizzle(_client, { schema });
   }
   return _db;
 }
 
 export function closeDb() {
-  if (_sqlite) {
-    _sqlite.close();
-    _sqlite = null;
+  if (_client) {
+    _client.close();
+    _client = null;
     _db = null;
   }
 }
 
-export type Db = BetterSQLite3Database<typeof schema>;
+export type Db = LibSQLDatabase<typeof schema>;
 
-export function initDb() {
+export async function initDb() {
   const db = getDb();
 
   // Apply migrations
-  migrate(db, { migrationsFolder: join(import.meta.dirname, "../drizzle") });
+  await migrate(db, { migrationsFolder: join(import.meta.dirname, "../drizzle") });
 
   return db;
 }

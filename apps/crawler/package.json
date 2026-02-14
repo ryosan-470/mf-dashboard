@@ -26,11 +26,9 @@
     "@mf-dashboard/db": "workspace:*",
     "@mf-dashboard/meta": "workspace:*",
     "@slack/web-api": "7.14.1",
-    "better-sqlite3": "catalog:",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "catalog:",
     "@types/node": "catalog:",
     "playwright": "catalog:",
     "typescript": "catalog:",

@@ -58,10 +58,10 @@ export async function withNewPage<T>(
   }
 }
 
-export function setupTestDb(dbPath: string): void {
+export async function setupTestDb(dbPath: string): Promise<void> {
   cleanupTestDb(dbPath);
   process.env.DB_PATH = dbPath;
-  initDb();
+  await initDb();
 }
 
 export function cleanupTestDb(dbPath: string): void {

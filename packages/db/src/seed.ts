@@ -9,9 +9,9 @@
  *   DB_PATH=../../data/demo.db npx tsx src/seed.ts
  */
 
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 import { unlinkSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as schema from "./schema/schema";
@@ -24,10 +24,9 @@ const dbPath =
 
 if (existsSync(dbPath)) unlinkSync(dbPath);
 
-const sqlite = new Database(dbPath);
-sqlite.pragma("journal_mode = WAL");
-const db = drizzle(sqlite, { schema });
-migrate(db, { migrationsFolder: join(import.meta.dirname, "../drizzle") });
+const client = createClient({ url: `file:${dbPath}` });
+const db = drizzle(client, { schema });
+await migrate(db, { migrationsFolder: join(import.meta.dirname, "../drizzle") });
 
 // ---------------------------------------------------------------------------
 // ヘルパー
@@ -114,7 +113,8 @@ const GROUP_ID_INVESTMENT = "demo_group_001"; // 投資グループ
 const GROUP_ID_LIVING = "demo_group_002"; // 生活グループ
 
 // グループ選択なし（全アカウント、isCurrent=true）
-db.insert(schema.groups)
+await db
+  .insert(schema.groups)
   .values({
     id: GROUP_ID,
     name: "グループ選択なし",
@@ -126,7 +126,8 @@ db.insert(schema.groups)
   .run();
 
 // 投資グループ
-db.insert(schema.groups)
+await db
+  .insert(schema.groups)
   .values({
     id: GROUP_ID_INVESTMENT,
     name: "投資",
@@ -138,7 +139,8 @@ db.insert(schema.groups)
   .run();
 
 // 生活グループ
-db.insert(schema.groups)
+await db
+  .insert(schema.groups)
   .values({
     id: GROUP_ID_LIVING,
     name: "生活",
@@ -191,7 +193,7 @@ const instCategories = [
 const instCatIds: Record<string, number> = {};
 for (const ic of instCategories) {
   const ts = now();
-  const result = db
+  const result = await db
     .insert(schema.institutionCategories)
     .values({
       name: ic.name,
@@ -212,7 +214,7 @@ const assetCats = ["預金・現金・暗号資産", "株式(現物)", "投資�
 const assetCatIds: Record<string, number> = {};
 for (const name of assetCats) {
   const ts = now();
-  const result = db
+  const result = await db
     .insert(schema.assetCategories)
     .values({
       name,
@@ -329,7 +331,7 @@ const accountDefs: AccountDef[] = [
 const accountIds: Record<string, number> = {};
 for (const a of accountDefs) {
   const ts = now();
-  const result = db
+  const result = await db
     .insert(schema.accounts)
     .values({
       mfId: mfId(),
@@ -346,7 +348,8 @@ for (const a of accountDefs) {
   accountIds[a.name] = result!.id;
 
   // Link account to グループ選択なし (all accounts)
-  db.insert(schema.groupAccounts)
+  await db
+    .insert(schema.groupAccounts)
     .values({
       groupId: GROUP_ID,
       accountId: result!.id,
@@ -357,7 +360,8 @@ for (const a of accountDefs) {
 
   // Link to 投資 group if it's an investment account
   if (investmentCategories.has(a.categoryName)) {
-    db.insert(schema.groupAccounts)
+    await db
+      .insert(schema.groupAccounts)
       .values({
         groupId: GROUP_ID_INVESTMENT,
         accountId: result!.id,
@@ -369,7 +373,8 @@ for (const a of accountDefs) {
 
   // Link to 生活 group if it's a living-related account
   if (livingCategories.has(a.categoryName)) {
-    db.insert(schema.groupAccounts)
+    await db
+      .insert(schema.groupAccounts)
       .values({
         groupId: GROUP_ID_LIVING,
         accountId: result!.id,
@@ -619,7 +624,7 @@ function calcGroupTotals(groupId: string): { assets: number; liabilities: number
 // すべてのholdingValuesをこのスナップショットに紐づける
 // グループフィルタリングはaccountIdsで行う
 const snapshotDate = dateStr(YEAR_END, MONTH_END, today.getDate());
-const snapshotResult = db
+const snapshotResult = await db
   .insert(schema.dailySnapshots)
   .values({
     groupId: GROUP_ID, // "0" = グループ選択なし
@@ -639,7 +644,7 @@ for (const h of holdingDefs) {
   const catId = h.assetCategory ? assetCatIds[h.assetCategory] : null;
   const ts = now();
 
-  const holdingResult = db
+  const holdingResult = await db
     .insert(schema.holdings)
     .values({
       mfId: mfId(),
@@ -659,7 +664,8 @@ for (const h of holdingDefs) {
 
   // すべてのholdingValuesを1つのスナップショットに紐づける
   // グループフィルタリングはクエリ時にaccountIdsで行う
-  db.insert(schema.holdingValues)
+  await db
+    .insert(schema.holdingValues)
     .values({
       holdingId,
       snapshotId,
@@ -697,7 +703,8 @@ for (const a of accountDefs) {
     status = "updating";
   }
 
-  db.insert(schema.accountStatuses)
+  await db
+    .insert(schema.accountStatuses)
     .values({
       accountId: accId,
       status,
@@ -1566,30 +1573,30 @@ forEachMonth((y, m) => {
 });
 
 // トランザクションをDBへINSERT (バッチ)
-const insertTxBatch = sqlite.transaction(() => {
-  for (const tx of allTransactions) {
+await db.transaction(async (tx) => {
+  for (const txRecord of allTransactions) {
     const ts = now();
-    db.insert(schema.transactions)
+    await tx
+      .insert(schema.transactions)
       .values({
-        mfId: tx.mfId,
-        date: tx.date,
-        accountId: tx.accountId,
-        category: tx.category,
-        subCategory: tx.subCategory,
-        description: tx.description,
-        amount: tx.amount,
-        type: tx.type,
-        isTransfer: tx.isTransfer,
-        isExcludedFromCalculation: tx.isExcludedFromCalculation,
-        transferTarget: tx.transferTarget,
-        transferTargetAccountId: tx.transferTargetAccountId,
+        mfId: txRecord.mfId,
+        date: txRecord.date,
+        accountId: txRecord.accountId,
+        category: txRecord.category,
+        subCategory: txRecord.subCategory,
+        description: txRecord.description,
+        amount: txRecord.amount,
+        type: txRecord.type,
+        isTransfer: txRecord.isTransfer,
+        isExcludedFromCalculation: txRecord.isExcludedFromCalculation,
+        transferTarget: txRecord.transferTarget,
+        transferTargetAccountId: txRecord.transferTargetAccountId,
         createdAt: ts,
         updatedAt: ts,
       })
       .run();
   }
 });
-insertTxBatch();
 
 console.log(`取引件数: ${allTransactions.length}`);
 
@@ -1778,7 +1785,7 @@ const LIVING_DEPOSITS = holdingDefs
 const LIVING_FINAL_DEPOSIT = LIVING_DEPOSITS; // ゆうちょ銀行を除く
 const LIVING_FINAL_POINT = FINAL_POINT;
 
-const insertAHBatch = sqlite.transaction(() => {
+await db.transaction(async (tx) => {
   // 各グループ用にassetHistoryを生成
   for (const groupId of ALL_GROUP_IDS) {
     const finalAssets = groupFinalAssets[groupId];
@@ -1791,7 +1798,7 @@ const insertAHBatch = sqlite.transaction(() => {
       const change = total - prevTotal;
       const ts = now();
 
-      const ahResult = db
+      const ahResult = await tx
         .insert(schema.assetHistory)
         .values({
           groupId,
@@ -1823,7 +1830,8 @@ const insertAHBatch = sqlite.transaction(() => {
           deposit = Math.max(0, total - fund - stock - pension - point);
         }
 
-        db.insert(schema.assetHistoryCategories)
+        await tx
+          .insert(schema.assetHistoryCategories)
           .values({
             assetHistoryId: ahId,
             categoryName: "預金・現金・暗号資産",
@@ -1833,7 +1841,8 @@ const insertAHBatch = sqlite.transaction(() => {
           })
           .run();
         if (fund > 0)
-          db.insert(schema.assetHistoryCategories)
+          await tx
+            .insert(schema.assetHistoryCategories)
             .values({
               assetHistoryId: ahId,
               categoryName: "投資信託",
@@ -1843,7 +1852,8 @@ const insertAHBatch = sqlite.transaction(() => {
             })
             .run();
         if (stock > 0)
-          db.insert(schema.assetHistoryCategories)
+          await tx
+            .insert(schema.assetHistoryCategories)
             .values({
               assetHistoryId: ahId,
               categoryName: "株式(現物)",
@@ -1853,7 +1863,8 @@ const insertAHBatch = sqlite.transaction(() => {
             })
             .run();
         if (pension > 0)
-          db.insert(schema.assetHistoryCategories)
+          await tx
+            .insert(schema.assetHistoryCategories)
             .values({
               assetHistoryId: ahId,
               categoryName: "年金",
@@ -1863,7 +1874,8 @@ const insertAHBatch = sqlite.transaction(() => {
             })
             .run();
         if (point > 0)
-          db.insert(schema.assetHistoryCategories)
+          await tx
+            .insert(schema.assetHistoryCategories)
             .values({
               assetHistoryId: ahId,
               categoryName: "ポイント・マイル",
@@ -1886,7 +1898,8 @@ const insertAHBatch = sqlite.transaction(() => {
         }
 
         if (fund > 0)
-          db.insert(schema.assetHistoryCategories)
+          await tx
+            .insert(schema.assetHistoryCategories)
             .values({
               assetHistoryId: ahId,
               categoryName: "投資信託",
@@ -1896,7 +1909,8 @@ const insertAHBatch = sqlite.transaction(() => {
             })
             .run();
         if (stock > 0)
-          db.insert(schema.assetHistoryCategories)
+          await tx
+            .insert(schema.assetHistoryCategories)
             .values({
               assetHistoryId: ahId,
               categoryName: "株式(現物)",
@@ -1906,7 +1920,8 @@ const insertAHBatch = sqlite.transaction(() => {
             })
             .run();
         if (pension > 0)
-          db.insert(schema.assetHistoryCategories)
+          await tx
+            .insert(schema.assetHistoryCategories)
             .values({
               assetHistoryId: ahId,
               categoryName: "年金",
@@ -1926,7 +1941,8 @@ const insertAHBatch = sqlite.transaction(() => {
           deposit = Math.max(0, total - point);
         }
 
-        db.insert(schema.assetHistoryCategories)
+        await tx
+          .insert(schema.assetHistoryCategories)
           .values({
             assetHistoryId: ahId,
             categoryName: "預金・現金・暗号資産",
@@ -1936,7 +1952,8 @@ const insertAHBatch = sqlite.transaction(() => {
           })
           .run();
         if (point > 0)
-          db.insert(schema.assetHistoryCategories)
+          await tx
+            .insert(schema.assetHistoryCategories)
             .values({
               assetHistoryId: ahId,
               categoryName: "ポイント・マイル",
@@ -1951,7 +1968,6 @@ const insertAHBatch = sqlite.transaction(() => {
     }
   }
 });
-insertAHBatch();
 
 console.log(`資産履歴日数: ${dailyAssetData.length}`);
 
@@ -1987,7 +2003,8 @@ for (const groupId of ALL_GROUP_IDS) {
 
   for (const st of spendingTargetDefs) {
     const ts = now();
-    db.insert(schema.spendingTargets)
+    await db
+      .insert(schema.spendingTargets)
       .values({
         groupId,
         largeCategoryId: st.largeCategoryId,
@@ -2009,7 +2026,8 @@ if (existsSync(insightsPath)) {
     readFileSync(insightsPath, "utf-8"),
   );
   for (const [groupId, data] of Object.entries(insights)) {
-    db.insert(schema.analyticsReports)
+    await db
+      .insert(schema.analyticsReports)
       .values({
         groupId,
         date: "2026-02-24",
@@ -2031,7 +2049,7 @@ if (existsSync(insightsPath)) {
 // ---------------------------------------------------------------------------
 // 完了
 // ---------------------------------------------------------------------------
-sqlite.close();
+client.close();
 
 // 年間収支を計算（グループ選択なし）
 const yearTotalIncome = Object.values(groupMonthlyData[GROUP_ID].income).reduce((s, v) => s + v, 0);
