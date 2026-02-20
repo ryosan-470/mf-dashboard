@@ -3,7 +3,9 @@ import type { Page } from "playwright";
 import { mfUrls } from "@mf-dashboard/meta/urls";
 import { debug, info, warn } from "../logger.js";
 
-const MAX_WAIT_TIME_MS = 20 * 60 * 1000; // 20 minutes max
+const DEFAULT_MAX_WAIT_MINUTES = 20;
+const MAX_WAIT_TIME_MS =
+  (Number(process.env.MAX_WAIT_MINUTES) || DEFAULT_MAX_WAIT_MINUTES) * 60 * 1000; // default: 20 minutes
 const POLL_INTERVAL_MS = 30000; // 30 seconds
 
 async function navigateToAccountsPage(page: Page): Promise<void> {
