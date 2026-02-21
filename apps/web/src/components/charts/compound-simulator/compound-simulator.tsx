@@ -72,6 +72,9 @@ interface CompoundSimulatorProps {
   defaultWithdrawalStartYear?: number;
   defaultExpenseRatio?: number;
   defaultVolatility?: number;
+  defaultBasePension?: number;
+  defaultPensionStartAge?: number;
+  defaultMonthlyOtherIncome?: number;
   title?: string;
   portfolioContext?: PortfolioContext;
 }
@@ -394,6 +397,9 @@ export function CompoundSimulator({
     30,
   defaultExpenseRatio = envNum(process.env.NEXT_PUBLIC_SIMULATOR_EXPENSE_RATIO) ?? 0.1,
   defaultVolatility = envNum(process.env.NEXT_PUBLIC_SIMULATOR_VOLATILITY) ?? 15,
+  defaultBasePension = envNum(process.env.NEXT_PUBLIC_SIMULATOR_BASE_PENSION) ?? 0,
+  defaultPensionStartAge = envNum(process.env.NEXT_PUBLIC_SIMULATOR_PENSION_START_AGE) ?? 65,
+  defaultMonthlyOtherIncome = envNum(process.env.NEXT_PUBLIC_SIMULATOR_MONTHLY_OTHER_INCOME) ?? 0,
   title = "複利シミュレーター",
   portfolioContext,
 }: CompoundSimulatorProps) {
@@ -413,9 +419,9 @@ export function CompoundSimulator({
   const [inflationAdjustedWithdrawal, setInflationAdjustedWithdrawal] = useState(false);
   const [currentAge, setCurrentAge] = useState<number | undefined>(defaultCurrentAge);
   const [selectedPreset, setSelectedPreset] = useState("custom");
-  const [basePension, setBasePension] = useState(0);
-  const [pensionStartAge, setPensionStartAge] = useState(65);
-  const [monthlyOtherIncome, setMonthlyOtherIncome] = useState(0);
+  const [basePension, setBasePension] = useState(defaultBasePension);
+  const [pensionStartAge, setPensionStartAge] = useState(defaultPensionStartAge);
+  const [monthlyOtherIncome, setMonthlyOtherIncome] = useState(defaultMonthlyOtherIncome);
   const [drawdownPercentile, setDrawdownPercentile] = useState<
     "p10" | "p25" | "p50" | "p75" | "p90"
   >("p50");
