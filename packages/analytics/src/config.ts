@@ -4,14 +4,16 @@ import { createOpenAI } from "@ai-sdk/openai";
 
 type Provider = "openai" | "anthropic" | "google";
 
+const baseURL = process.env.AI_BASE_URL || undefined;
+
 const providers: Record<Provider, () => ReturnType<typeof createOpenAI>> = {
-  openai: () => createOpenAI({ apiKey: process.env.AI_API_KEY }),
+  openai: () => createOpenAI({ apiKey: process.env.AI_API_KEY, baseURL }),
   anthropic: () =>
-    createAnthropic({ apiKey: process.env.AI_API_KEY }) as unknown as ReturnType<
+    createAnthropic({ apiKey: process.env.AI_API_KEY, baseURL }) as unknown as ReturnType<
       typeof createOpenAI
     >,
   google: () =>
-    createGoogleGenerativeAI({ apiKey: process.env.AI_API_KEY }) as unknown as ReturnType<
+    createGoogleGenerativeAI({ apiKey: process.env.AI_API_KEY, baseURL }) as unknown as ReturnType<
       typeof createOpenAI
     >,
 };
